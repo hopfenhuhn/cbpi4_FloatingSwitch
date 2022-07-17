@@ -1,0 +1,10 @@
+{
+    "type": "sftp",
+    "host": "craftbeerpi",
+    "username": "pi",
+    "password": "hopfenhuhn",
+    "port": 22,
+    "remotePath": "/home/pi/cbpi4_FloatingSwitch",
+    "uploadOnSave": true,
+    "uploadConfigFile": false
+}
