@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from unittest.mock import MagicMock, patch
+import random
 
 from cbpi.api import *
 
@@ -25,7 +26,9 @@ except Exception:
 
 @parameters([Property.Select(label="GPIO", options=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27]),
              Property.Select(label="Direction", options=["low", "high"], description="Switch active on GPIO high or low (default: low)"),
-             Property.Actor(label="Dashboard-LED", description="Chose dummy-actor for dashboard LED if switch is triggered.")])
+             Property.Actor(label="Dashboard-LED", description="Chose dummy-actor for dashboard LED if switch is triggered."),
+             Property.Actor(label="Pump",  description="Select the actor you would like to add a dependency to."),
+             Property.Number(label="Time", description="Time in seconds the actor will be triggered for pumping wort.")])
 class FloatingSwitch(CBPiSensor):
 
     def __init__(self, cbpi, id, props):
@@ -35,6 +38,8 @@ class FloatingSwitch(CBPiSensor):
         self.direction = GPIO.HIGH if self.props.get("Direction", "low") == "high" else GPIO.LOW
         self.dashboardled = self.props.get("Dashboard-LED", None)
         actor_led = self.cbpi.actor.find_by_id(self.dashboardled)
+        self.pump = self.props.get("Pump", None)
+        self.time = int(self.props.get("Time", 0))
 
         try:
             GPIO.setup(int(self.gpio),GPIO.IN)
@@ -48,23 +53,27 @@ class FloatingSwitch(CBPiSensor):
 
     async def run(self):
         while self.running is True:
+            #self.value = round(random.random())
             try:
                 actor_led_state = actor_led.instance.state
             except:
                 actor_led_state = False
 
+            #if self.value == 1:
             if GPIO.input(self.gpio) == self.direction:
                 self.value = 1
                 self.push_update(self.value)
                 if actor_led_state == False:
                     await self.cbpi.actor.on(self.dashboardled)
+                    await self.cbpi.actor.on(self.pump)
                     #self.state = True
-                #await asyncio.sleep(5)
+                    await asyncio.sleep(self.time)
             else:
                 self.value = 0
                 self.push_update(self.value)
                 #if actor_led_state == True:
                 await self.cbpi.actor.off(self.dashboardled)
+                await self.cbpi.actor.off(self.pump)
                     #self.state = False
             await asyncio.sleep(1)
 
@@ -84,24 +93,24 @@ class TimedPump(CBPiActor):
         self.time = self.props.get("Time", 0)
         pump_actor = self.cbpi.actor.find_by_id(self.pump)
         sensor_dep = self.cbpi.sensor.find_by_id(self.sensor_dependency)
-        self.init = False
-        pass
+        sensor_value = 0
 
     async def on(self, power=None):
-        #sensor_val = self.cbpi.sensor.get_sensor_value(self.sensor_dependency).get("value")
-        #logger.info("Schwimmerschalter Status %s" % sensor_val)
+        logger.info("Actor %s ON " % self.id)
         self.state = True
-        while self.state is True:
-            sensor_val = self.cbpi.sensor.get_sensor_value(self.sensor_dependency).get("value")
-            #logger.info("Schwimmerschalter Status %s" % sensor_val)
-            if sensor_val == 1:
-                await self.cbpi.actor.on(self.pump)
-                await asyncio.sleep(self.time)
-            else:
-                 await self.cbpi.actor.off(self.pump)
-                 await asyncio.sleep(1)
+        sensor_value = self.cbpi.sensor.get_sensor_value(self.sensor_dependency).get("value")
+        logger.info("Sensor: %s" % sensor_value)
+        if sensor_value == 1:
+            await self.cbpi.actor.on(self.pump)
+        else:
+            await self.cbpi.actor.off(self.pump)
+        # while self.running is True:
+        #     logger.info("Sensor = %s" % self.sensor_value)
+        #     await asyncio.sleep(1)
+
 
     async def off(self):
+        logger.info("Actor %s OFF " % self.id)
         logger.info("ACTOR %s OFF " % self.pump)
         await self.cbpi.actor.off(self.pump)
         self.state = False
@@ -110,13 +119,18 @@ class TimedPump(CBPiActor):
         return self.state
 
     async def run(self):
-
-        # if self.init == False:
-        #     if self.pump is not None:
-        #         await self.cbpi.actor.off(self.pump)
-        #         self.state = False
-        #     self.init = True
-        pass
+        while self.running is True:
+            if self.state is True:
+                # self.sensor_value = round(random())
+                sensor_value = self.cbpi.sensor.get_sensor_value(self.sensor_dependency).get("value")
+                logger.debug("Hallo")
+                if sensor_value == 1:
+                    await self.cbpi.actor.on(self.id)
+                # else:
+                #     await self.cbpi.actor.off(self.pump)
+                await asyncio.sleep(1)
+            else:
+                await asyncio.sleep(1)
 
 def setup(cbpi):
     cbpi.plugin.register("FloatingSwitch", FloatingSwitch)
