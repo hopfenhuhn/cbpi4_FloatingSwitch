@@ -26,9 +26,9 @@ except Exception:
 
 @parameters([Property.Select(label="GPIO", options=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27]),
              Property.Select(label="Direction", options=["low", "high"], description="Switch active on GPIO high or low (default: low)"),
-             Property.Actor(label="Dashboard-LED", description="Chose dummy-actor for dashboard LED if switch is triggered."),
-             Property.Actor(label="Pump",  description="Select the actor you would like to add a dependency to."),
-             Property.Number(label="Time", description="Time in seconds the actor will be triggered for pumping wort.")])
+             Property.Actor(label="Dashboard-LED", description="Chose dummy-actor for dashboard LED if switch is triggered.")])
+             #Property.Actor(label="Pump",  description="Select the actor you would like to add a dependency to."),
+             #Property.Number(label="Time", description="Time in seconds the actor will be triggered for pumping wort.")])
 class FloatingSwitch(CBPiSensor):
 
     def __init__(self, cbpi, id, props):
@@ -37,7 +37,7 @@ class FloatingSwitch(CBPiSensor):
         self.gpio = self.props.GPIO
         self.direction = GPIO.HIGH if self.props.get("Direction", "low") == "high" else GPIO.LOW
         self.dashboardled = self.props.get("Dashboard-LED", None)
-        actor_led = self.cbpi.actor.find_by_id(self.dashboardled)
+        self.actor_led = self.cbpi.actor.find_by_id(self.dashboardled)
         self.pump = self.props.get("Pump", None)
         self.time = int(self.props.get("Time", 0))
 
@@ -48,16 +48,15 @@ class FloatingSwitch(CBPiSensor):
         except Exception as e:
             print(e)
 
-#    def isFull(self, channel):
-#        self.value = 1
-
     async def run(self):
         while self.running is True:
             #self.value = round(random.random())
             try:
-                actor_led_state = actor_led.instance.state
+                actor_led_state = self.actor_led.instance.state
             except:
                 actor_led_state = False
+            #logger.info("LED state: %s" % actor_led_state)
+            #logger.info("LED Aktor: %s" % self.actor_led)
 
             #if self.value == 1:
             if GPIO.input(self.gpio) == self.direction:
@@ -65,16 +64,12 @@ class FloatingSwitch(CBPiSensor):
                 self.push_update(self.value)
                 if actor_led_state == False:
                     await self.cbpi.actor.on(self.dashboardled)
-                    await self.cbpi.actor.on(self.pump)
-                    #self.state = True
-                    await asyncio.sleep(self.time)
+
             else:
                 self.value = 0
                 self.push_update(self.value)
-                #if actor_led_state == True:
-                await self.cbpi.actor.off(self.dashboardled)
-                await self.cbpi.actor.off(self.pump)
-                    #self.state = False
+                if actor_led_state == True:
+                    await self.cbpi.actor.off(self.dashboardled)
             await asyncio.sleep(1)
 
     def get_state(self):
@@ -86,24 +81,24 @@ class FloatingSwitch(CBPiSensor):
              Property.Number(label="Time", description="Time in seconds the actor will be triggered for pumping wort.")])
 
 class TimedPump(CBPiActor):
-    def on_start(self):
+    async def on_start(self):
         self.state = False
         self.pump = self.props.get("Pump", None)
         self.sensor_dependency = self.props.get("SensorDependency", None)
         self.time = self.props.get("Time", 0)
-        pump_actor = self.cbpi.actor.find_by_id(self.pump)
-        sensor_dep = self.cbpi.sensor.find_by_id(self.sensor_dependency)
+        self.pump_actor = self.cbpi.actor.find_by_id(self.pump)
+        #sensor_dep = self.cbpi.sensor.find_by_id(self.sensor_dependency)
         sensor_value = 0
 
     async def on(self, power=None):
         logger.info("Actor %s ON " % self.id)
         self.state = True
-        sensor_value = self.cbpi.sensor.get_sensor_value(self.sensor_dependency).get("value")
-        logger.info("Sensor: %s" % sensor_value)
-        if sensor_value == 1:
-            await self.cbpi.actor.on(self.pump)
-        else:
-            await self.cbpi.actor.off(self.pump)
+        #sensor_value = self.cbpi.sensor.get_sensor_value(self.sensor_dependency).get("value")
+        #logger.info("Sensor: %s" % sensor_value)
+        #if sensor_value == 1:
+        #    await self.cbpi.actor.on(self.pump)
+        #else:
+        #    await self.cbpi.actor.off(self.pump)
         # while self.running is True:
         #     logger.info("Sensor = %s" % self.sensor_value)
         #     await asyncio.sleep(1)
@@ -119,18 +114,27 @@ class TimedPump(CBPiActor):
         return self.state
 
     async def run(self):
-        while self.running is True:
-            if self.state is True:
+        while self.running == True:
+            try:
+                pump_state = self.pump_actor.instance.state
+            except:
+                pump_state = False
+            logger.info("Pump Actor State: %s" % pump_state)
+            if self.state == True:
                 # self.sensor_value = round(random())
                 sensor_value = self.cbpi.sensor.get_sensor_value(self.sensor_dependency).get("value")
-                logger.debug("Hallo")
-                if sensor_value == 1:
-                    await self.cbpi.actor.on(self.id)
-                # else:
-                #     await self.cbpi.actor.off(self.pump)
-                await asyncio.sleep(1)
+                #logger.debug("Hallo")
+                if (sensor_value == 1) and pump_state == False:
+                    await self.cbpi.actor.on(self.pump)
+                    await asyncio.sleep(self.time)
+                    await self.cbpi.actor.off(self.pump)
+                else:
+                    if pump_state == True:
+                        await self.cbpi.actor.off(self.pump)
+
             else:
-                await asyncio.sleep(1)
+                pass
+            await asyncio.sleep(1)
 
 def setup(cbpi):
     cbpi.plugin.register("FloatingSwitch", FloatingSwitch)
