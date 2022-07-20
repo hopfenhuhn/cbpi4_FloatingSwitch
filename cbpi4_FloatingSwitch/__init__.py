@@ -93,15 +93,6 @@ class TimedPump(CBPiActor):
     async def on(self, power=None):
         logger.info("Actor %s ON " % self.id)
         self.state = True
-        #sensor_value = self.cbpi.sensor.get_sensor_value(self.sensor_dependency).get("value")
-        #logger.info("Sensor: %s" % sensor_value)
-        #if sensor_value == 1:
-        #    await self.cbpi.actor.on(self.pump)
-        #else:
-        #    await self.cbpi.actor.off(self.pump)
-        # while self.running is True:
-        #     logger.info("Sensor = %s" % self.sensor_value)
-        #     await asyncio.sleep(1)
 
 
     async def off(self):
@@ -119,7 +110,7 @@ class TimedPump(CBPiActor):
                 pump_state = self.pump_actor.instance.state
             except:
                 pump_state = False
-            logger.info("Pump Actor State: %s" % pump_state)
+            #logger.info("Pump Actor State: %s" % pump_state)
             if self.state == True:
                 # self.sensor_value = round(random())
                 sensor_value = self.cbpi.sensor.get_sensor_value(self.sensor_dependency).get("value")
@@ -139,7 +130,4 @@ class TimedPump(CBPiActor):
 def setup(cbpi):
     cbpi.plugin.register("FloatingSwitch", FloatingSwitch)
     cbpi.plugin.register("TimedPump", TimedPump)
-    #cbpi.plugin.register("MyCustomActor", CustomActor)
-    #cbpi.plugin.register("MyCustomSensor", CustomSensor)
-    #cbpi.plugin.register("MyustomWebExtension", CustomWebExtension)
     pass
