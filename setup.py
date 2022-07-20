@@ -5,7 +5,7 @@ setup(name='cbpi4_FloatingSwitch',
       description='CraftBeerPi Plugin',
       author='Matthias Hansen',
       author_email='cbpi4@hopfenhuhn.de',
-      url='',
+      url='https://github.com/hopfenhuhn/cbpi4_FloatingSwitch',
       include_package_data=True,
       package_data={
         # If any package contains *.txt or *.rst files, include them:
