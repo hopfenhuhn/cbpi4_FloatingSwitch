@@ -85,7 +85,7 @@ class TimedPump(CBPiActor):
         self.state = False
         self.pump = self.props.get("Pump", None)
         self.sensor_dependency = self.props.get("SensorDependency", None)
-        self.time = self.props.get("Time", 0)
+        self.time = int(self.props.get("Time", 0))
         self.pump_actor = self.cbpi.actor.find_by_id(self.pump)
         #sensor_dep = self.cbpi.sensor.find_by_id(self.sensor_dependency)
         sensor_value = 0
