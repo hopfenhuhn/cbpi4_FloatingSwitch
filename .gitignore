@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Atom SFTP Sync
+atom-sftp-sync.json
